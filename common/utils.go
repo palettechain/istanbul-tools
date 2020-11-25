@@ -86,23 +86,48 @@ func CopyKeystore(dir string, accounts []accounts.Account) {
 	}
 }
 
+//func GenerateKeys(num int) (keys []*ecdsa.PrivateKey, nodekeys []string, addrs []common.Address) {
+//	for i := 0; i < num; i++ {
+//		nodekey := RandomHex()[2:]
+//		nodekeys = append(nodekeys, nodekey)
+//
+//		key, err := crypto.HexToECDSA(nodekey)
+//		if err != nil {
+//			log.Error("Failed to generate key", "err", err)
+//			return nil, nil, nil
+//		}
+//		keys = append(keys, key)
+//
+//		addr := crypto.PubkeyToAddress(key.PublicKey)
+//		addrs = append(addrs, addr)
+//	}
+//
+//	return keys, nodekeys, addrs
+//}
+
 func GenerateKeys(num int) (keys []*ecdsa.PrivateKey, nodekeys []string, addrs []common.Address) {
 	for i := 0; i < num; i++ {
-		nodekey := RandomHex()[2:]
-		nodekeys = append(nodekeys, nodekey)
-
-		key, err := crypto.HexToECDSA(nodekey)
+		key, nodekey, addr, err := GenerateKey()
 		if err != nil {
 			log.Error("Failed to generate key", "err", err)
 			return nil, nil, nil
 		}
+		nodekeys = append(nodekeys, nodekey)
 		keys = append(keys, key)
-
-		addr := crypto.PubkeyToAddress(key.PublicKey)
 		addrs = append(addrs, addr)
 	}
 
 	return keys, nodekeys, addrs
+}
+
+func GenerateKey() (key *ecdsa.PrivateKey, nodekey string, addr common.Address, err error) {
+	nodekey = RandomHex()[2:]
+	if key, err = crypto.HexToECDSA(nodekey); err != nil {
+		err = fmt.Errorf("Failed to generate key, err: %v", err)
+		return
+	}
+	addr = crypto.PubkeyToAddress(key.PublicKey)
+	return
 }
 
 func SaveNodeKey(key *ecdsa.PrivateKey, dataDir string) error {

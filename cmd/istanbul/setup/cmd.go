@@ -20,17 +20,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"net"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	istcommon "github.com/jpmorganchase/istanbul-tools/common"
-	"github.com/jpmorganchase/istanbul-tools/docker/compose"
 	"github.com/jpmorganchase/istanbul-tools/genesis"
 	"github.com/urfave/cli"
 )
@@ -59,11 +56,7 @@ var (
 			staticNodesFlag,
 			verboseFlag,
 			quorumFlag,
-			dockerComposeFlag,
 			saveFlag,
-			nodeIpFlag,
-			nodePortBaseFlag,
-			nodePortIncrementFlag,
 		},
 	}
 )
@@ -78,9 +71,9 @@ func gen(ctx *cli.Context) error {
 		fmt.Println("validators")
 	}
 
-	nodeIp := ctx.String(nodeIpFlag.Name)
-	nodePort := ctx.Int(nodePortBaseFlag.Name)
-	nodePortIncrement := ctx.Int(nodePortIncrementFlag.Name)
+	if ctx.Bool(saveFlag.Name) {
+		os.MkdirAll("setup", os.ModePerm)
+	}
 
 	for i := 0; i < num; i++ {
 		v := &validatorInfo{
@@ -88,11 +81,10 @@ func gen(ctx *cli.Context) error {
 			Nodekey: nodekeys[i],
 			NodeInfo: discv5.NewNode(
 				discv5.PubkeyID(&keys[i].PublicKey),
-				net.ParseIP(nodeIp),
+				net.ParseIP("0.0.0.0"),
 				0,
-				uint16(nodePort)).String(),
+				uint16(30300)).String(),
 		}
-		nodePort = nodePort + nodePortIncrement
 
 		nodes = append(nodes, string(v.NodeInfo))
 
@@ -101,9 +93,11 @@ func gen(ctx *cli.Context) error {
 			fmt.Println(string(str))
 
 			if ctx.Bool(saveFlag.Name) {
-				folderName := strconv.Itoa(i)
-				os.MkdirAll(folderName, os.ModePerm)
-				ioutil.WriteFile(path.Join(folderName, "nodekey"), []byte(nodekeys[i]), os.ModePerm)
+				os.MkdirAll("nodekeys", os.ModePerm)
+				folderName := fmt.Sprintf("node%d", i) //strconv.Itoa(i)
+				folderPath := path.Join("setup", "nodekeys", folderName)
+				os.MkdirAll(folderPath, os.ModePerm)
+				ioutil.WriteFile(path.Join(folderPath, "nodekey"), []byte(nodekeys[i]), os.ModePerm)
 			}
 		}
 	}
@@ -120,7 +114,7 @@ func gen(ctx *cli.Context) error {
 		fmt.Print("\n\n\n")
 
 		if ctx.Bool(saveFlag.Name) {
-			ioutil.WriteFile(name, staticNodes, os.ModePerm)
+			ioutil.WriteFile(path.Join("setup", name), staticNodes, os.ModePerm)
 		}
 	}
 
@@ -128,7 +122,6 @@ func gen(ctx *cli.Context) error {
 	isQuorum := ctx.Bool(quorumFlag.Name)
 	g := genesis.New(
 		genesis.Validators(addrs...),
-		genesis.Alloc(addrs, new(big.Int).Exp(big.NewInt(10), big.NewInt(50), nil)),
 	)
 
 	if isQuorum {
@@ -140,25 +133,7 @@ func gen(ctx *cli.Context) error {
 	fmt.Println(string(jsonBytes))
 
 	if ctx.Bool(saveFlag.Name) {
-		ioutil.WriteFile("genesis.json", jsonBytes, os.ModePerm)
-	}
-
-	if ctx.Bool(dockerComposeFlag.Name) {
-		fmt.Print("\n\n\n")
-		compose := compose.New(
-			"172.16.239",
-			num,
-			"bb98a0b6442386d0cdf8a31b267892c1",
-			nodekeys,
-			removeSpacesAndLines(jsonBytes),
-			removeSpacesAndLines(staticNodes),
-			isQuorum)
-		fmt.Println("docker-compose.yml")
-		fmt.Println(compose.String())
-
-		if ctx.Bool(saveFlag.Name) {
-			ioutil.WriteFile("docker-compose.yml", []byte(compose.String()), os.ModePerm)
-		}
+		ioutil.WriteFile(path.Join("setup", "genesis.json"), jsonBytes, os.ModePerm)
 	}
 
 	return nil

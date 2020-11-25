@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
-
 	"github.com/jpmorganchase/istanbul-tools/common"
 )
 
@@ -98,4 +97,10 @@ func Save(dataDir string, genesis *core.Genesis, isQuorum bool) error {
 		return err
 	}
 	return ioutil.WriteFile(filePath, raw, 0600)
+}
+
+func NetworkID(id int64) Option {
+	return func(genesis *core.Genesis) {
+		genesis.Config.ChainID = big.NewInt(id)
+	}
 }
